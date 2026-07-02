@@ -42,9 +42,17 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug > ../build_output.log 2>&1
+
+      - name: Upload Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-log
+          path: build_output.log
 
       - name: Upload Android APK Artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
