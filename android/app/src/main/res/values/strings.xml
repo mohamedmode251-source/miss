@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">سيستم مس الاء</string>
+    <string name="title_activity_main">سيستم مس الاء</string>
+    <string name="package_name">com.moaaz.teachersystem</string>
+    <string name="custom_url_scheme">com.moaaz.teachersystem</string>
+</resources>

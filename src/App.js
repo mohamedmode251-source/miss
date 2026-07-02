@@ -4,7 +4,7 @@ import {
   getGroups, saveGroup, deleteGroup,
   getStudents, saveStudent, deleteStudent,
   exportBackupData, importBackupData,
-  isCloudMode, syncLocalToCloud, disconnectCloud
+  isCloudMode
 } from './db/db';
 
 // ============================================================
@@ -2033,28 +2033,7 @@ function PaymentsView({ groups, allStudents, onRefresh }) {
 // ============================================================
 // eslint-disable-next-line no-unused-vars
 function SettingsView({ cloudMode, onCloudChange }) {
-  const [fbConfig, setFbConfig] = useState({ apiKey:'', authDomain:'', projectId:'', storageBucket:'', messagingSenderId:'', appId:'' });
-  const [syncLoading, setSyncLoading] = useState(false);
   const toast = useToast();
-
-  const handleSync = async () => {
-    if (!fbConfig.apiKey || !fbConfig.projectId) { toast('يرجى ملء حقل API Key وProject ID على الأقل', 'error'); return; }
-    setSyncLoading(true);
-    try {
-      await syncLocalToCloud(fbConfig);
-      onCloudChange(true);
-      toast('تم الاتصال بالسحابة ونقل البيانات بنجاح! ☁️', 'success');
-    } catch (e) {
-      toast('فشل الاتصال: ' + e.message, 'error');
-    }
-    setSyncLoading(false);
-  };
-
-  const handleDisconnect = () => {
-    disconnectCloud();
-    onCloudChange(false);
-    toast('تم قطع الاتصال بالسحابة، البيانات محفوظة محلياً', 'info');
-  };
 
   const handleExport = async () => {
     try {
@@ -2065,7 +2044,7 @@ function SettingsView({ cloudMode, onCloudChange }) {
       a.download = `teacher-backup-${today()}.json`; a.click();
       URL.revokeObjectURL(url);
       toast('تم تصدير النسخة الاحتياطية بنجاح', 'success');
-    } catch (e) { toast('فشل التصدير', 'error'); }
+    } catch (e) { toast('فشل التصدير: ' + e.message, 'error'); }
   };
 
   const handleImport = (e) => {
@@ -2083,60 +2062,58 @@ function SettingsView({ cloudMode, onCloudChange }) {
     reader.readAsText(file);
   };
 
-  const fields = [
-    { key: 'apiKey', label: 'API Key', placeholder: 'AIza...' },
-    { key: 'authDomain', label: 'Auth Domain', placeholder: 'project.firebaseapp.com' },
-    { key: 'projectId', label: 'Project ID', placeholder: 'my-project' },
-    { key: 'storageBucket', label: 'Storage Bucket', placeholder: 'project.appspot.com' },
-    { key: 'messagingSenderId', label: 'Messaging Sender ID', placeholder: '123456789' },
-    { key: 'appId', label: 'App ID', placeholder: '1:123:web:abc' },
-  ];
-
   return (
     <div className="animate-fade">
       <div className="page-header">
         <div>
           <h1 className="page-title">الإعدادات</h1>
-          <p className="page-subtitle">إدارة البيانات والمزامنة السحابية</p>
+          <p className="page-subtitle">إدارة البيانات والنسخ الاحتياطي</p>
         </div>
       </div>
 
-      {/* Cloud Sync */}
+      {/* Storage Mode — Local Only */}
       <div className="settings-section">
         <div className="settings-section-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <span style={{ display: 'inline-flex', color: 'var(--primary)' }}>{Icon.cloud}</span> المزامنة السحابية (Firebase)
-          {cloudMode && <span className="badge badge-center" style={{ marginRight: '0.5rem' }}>متصل</span>}
+          <span style={{ display: 'inline-flex', color: 'var(--primary)' }}>{Icon.lock}</span> وضع التخزين
         </div>
-
-        {cloudMode ? (
-          <div>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem', fontSize: '0.93rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ display: 'inline-flex', color: 'var(--success)' }}>{Icon.check}</span> أنت متصل بالسحابة. بياناتك تُحفظ تلقائياً في Firestore.
-            </p>
-            <button className="btn btn-danger" onClick={handleDisconnect}>قطع الاتصال والرجوع للتخزين المحلي</button>
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '1rem',
+          padding: '1.25rem',
+          background: 'rgba(16,185,129,0.07)',
+          border: '1.5px solid rgba(16,185,129,0.25)',
+          borderRadius: '14px',
+        }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%',
+            background: 'rgba(16,185,129,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, color: 'var(--success)', fontSize: '1.3rem'
+          }}>
+            ✓
           </div>
-        ) : (
           <div>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.7, fontSize: '0.93rem' }}>
-              أدخل بيانات مشروع Firebase الخاص بك لتفعيل المزامنة السحابية. سيتم نقل كل بياناتك المحلية تلقائياً.
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
-              {fields.map(f => (
-                <div key={f.key} className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">{f.label}</label>
-                  <input className="form-control" placeholder={f.placeholder} value={fbConfig[f.key]} onChange={e => setFbConfig({ ...fbConfig, [f.key]: e.target.value })} />
-                </div>
-              ))}
+            <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-main)', marginBottom: '0.35rem' }}>
+              تخزين محلي كامل — بدون إنترنت
             </div>
-            <button className="btn btn-primary" onClick={handleSync} disabled={syncLoading} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-              {syncLoading ? 'جاري الاتصال والمزامنة...' : (
-                <>
-                  <span style={{ display: 'inline-flex' }}>{Icon.cloud}</span> اتصل بالسحابة وانقل البيانات
-                </>
-              )}
-            </button>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.7, margin: 0 }}>
+              جميع بياناتك مخزنة على جهازك مباشرة باستخدام <strong>IndexedDB / Dexie.js</strong>.
+              لا يُرسَل أي شيء إلى الإنترنت. يعمل التطبيق بشكل كامل في وضع عدم الاتصال.
+            </p>
+            <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ padding: '0.2rem 0.65rem', background: 'rgba(16,185,129,0.15)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600 }}>
+                ✓ يعمل بدون إنترنت
+              </span>
+              <span style={{ padding: '0.2rem 0.65rem', background: 'rgba(99,102,241,0.12)', color: 'var(--primary)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600 }}>
+                ✓ بيانات خاصة على جهازك فقط
+              </span>
+              <span style={{ padding: '0.2rem 0.65rem', background: 'rgba(245,158,11,0.12)', color: '#d97706', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600 }}>
+                ✓ تعمل بعد إعادة التشغيل
+              </span>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Backup */}
@@ -2154,7 +2131,7 @@ function SettingsView({ cloudMode, onCloudChange }) {
           </label>
         </div>
         <p style={{ color: 'var(--text-muted)', marginTop: '0.75rem', fontSize: '0.85rem' }}>
-          يمكنك تصدير كل بياناتك كملف JSON للحفاظ عليها، ثم استيرادها في أي وقت.
+          يمكنك تصدير كل بياناتك كملف JSON للحفاظ عليها، ثم استيرادها في أي وقت أو على أي جهاز.
         </p>
       </div>
 
@@ -2165,20 +2142,20 @@ function SettingsView({ cloudMode, onCloudChange }) {
         </div>
         <div style={{ color: 'var(--text-muted)', lineHeight: 2.2, fontSize: '0.93rem' }}>
           <p style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ display: 'inline-flex', color: 'var(--primary)' }}>{Icon.student}</span> 
+            <span style={{ display: 'inline-flex', color: 'var(--primary)' }}>{Icon.student}</span>
             <strong style={{ color: 'var(--text-main)' }}>سيستم مس الاء رمضان</strong> — لوحة تحكم ذكية لإدارة الطلاب والمجموعات
           </p>
           <p style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ display: 'inline-flex', color: 'var(--primary)' }}>{Icon.download}</span> 
-            <span>التخزين: IndexedDB (محلي) + Firebase Firestore (سحابي اختياري)</span>
+            <span style={{ display: 'inline-flex', color: 'var(--primary)' }}>{Icon.download}</span>
+            <span>التخزين: IndexedDB محلي بالكامل — مدعوم بـ Dexie.js</span>
           </p>
           <p style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ display: 'inline-flex', color: 'var(--primary)' }}>{Icon.flash}</span> 
-            <span>بُني بـ React.js مع دعم كامل للغة العربية</span>
+            <span style={{ display: 'inline-flex', color: 'var(--primary)' }}>{Icon.flash}</span>
+            <span>بُني بـ React.js مع Capacitor للأجهزة المحمولة (Android & iOS)</span>
           </p>
           <p style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ display: 'inline-flex', color: 'var(--primary)' }}>{Icon.lock}</span> 
-            <span>لا يوجد تسجيل دخول — بياناتك خاصة بك فقط</span>
+            <span style={{ display: 'inline-flex', color: 'var(--primary)' }}>{Icon.lock}</span>
+            <span>لا يوجد تسجيل دخول — بياناتك خاصة بك فقط، لا تُرسَل لأي خادم</span>
           </p>
         </div>
       </div>
